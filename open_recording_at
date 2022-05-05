@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+mpv --start=$2 $(sed -n '1p' $1 | sed -e 's/<!-- //' | sed -e 's/ -->//') --pause --speed=2.0 &

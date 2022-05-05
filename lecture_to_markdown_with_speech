@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+# Standard PySceneDetect imports:
+from scenedetect import VideoManager
+from scenedetect import SceneManager
+
+# For content-aware scene detection:
+from scenedetect.detectors import ContentDetector
+
+SCENEDETECTION = True
+
+from vosk import Model, KaldiRecognizer, SetLogLevel
+import sys
+import os
+import subprocess
+import json
+from datetime import datetime
+from enum import Enum
+
+SetLogLevel(-1)
+
+
+class Mode(Enum):
+    write = "write"
+    append = "append"
+
+
+PATH = os.path.expanduser("~") + "/Repositories/vosk-models/vosk-model-de-0.21"
+if not os.path.exists(PATH):
+    print(
+        "Please download the model from https://alphacephei.com/vosk/models"
+        " and unpack as `model` in the current folder."
+    )
+    exit(1)
+SAMPLE_RATE = 16000
+model = Model(PATH)
+SECTION_LENGTH_MINUTES = 5
+rec = KaldiRecognizer(model, SAMPLE_RATE)
+rec.SetWords(True)
+
+
+def time_string(seconds):
+    minutes = seconds / 60
+    seconds = seconds % 60
+    hours = int(minutes / 60)
+    minutes = int(minutes % 60)
+    return "%i:%02i:%02i" % (hours, minutes, seconds)
+
+
+def print_current_time(prefix):
+    now = datetime.now()
+    print(prefix + now.strftime("%H:%M:%S"))
+    return now
+
+
+def transcribe(scenes):
+    command = [
+        "ffmpeg",
+        "-nostdin",
+        "-loglevel",
+        "quiet",
+        "-i",
+        sys.argv[1],
+        "-ar",
+        str(SAMPLE_RATE),
+        "-ac",
+        "1",
+        "-f",
+        "s16le",
+        "-",
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+
+    _write_to_file_or_print("", Mode.write)
+    image_idx = -1
+    img_string, image_idx = _save_image(time_string(1), image_idx)
+    sentences = f"<!-- {os.path.abspath(sys.argv[1])} -->\n<!-- /home/areo/.config/mpv/mpv.conf -->\n[toc]\n# {'='*14}{time_string(0)}{'='*14}\n- {img_string}\n"
+    next_section_start = SECTION_LENGTH_MINUTES * 60
+    while True:
+        data = process.stdout.read(4000)
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            result = rec.Result()
+
+            sentences, next_section_start, image_idx = _deal_with_result(
+                result, sentences, next_section_start, image_idx, scenes
+            )
+
+    result = rec.FinalResult()
+    _deal_with_result(
+        result, sentences, next_section_start, image_idx, scenes, final_sentences=True
+    )
+
+
+def _deal_with_result(
+    result, sentences, next_section_start, image_idx, scenes, final_sentences=False
+):
+    words = json.loads(result).get("result")
+    if not words:
+        return sentences, next_section_start, image_idx
+
+    start_seconds = words[0]["start"]
+    start = time_string(start_seconds)
+    #  end = time_string(words[-1]["end"])
+    content = " ".join([w["word"] for w in words])
+
+    if start_seconds >= next_section_start:
+        _write_to_file_or_print(sentences, Mode.append)
+        img_string, image_idx = _save_image(time_string(next_section_start), image_idx)
+        del sentences
+        sentences = (
+            f"# {'='*14}{time_string(next_section_start)}{'='*14}\n- {img_string}\n"
+        )
+        next_section_start += SECTION_LENGTH_MINUTES * 60
+
+    if scenes and start_seconds >= scenes[0][1].get_seconds():
+        img_string, image_idx = _save_image(
+            time_string(scenes[0][1].get_seconds()), image_idx
+        )
+        sentences += f"- {img_string}\n"
+        del scenes[0]
+
+    if final_sentences:
+        sentences += f"<!-- - `{start}`: {content}. -->\n"
+        _write_to_file_or_print(sentences, Mode.append)
+
+    sentences += f"<!-- - `{start}`: {content}. -->\n"
+    return sentences, next_section_start, image_idx
+
+
+def _write_to_file_or_print(sentences, mode):
+    match mode:
+        case Mode.write:
+            with open(sys.argv[2], "w") as fin:
+                fin.write(sentences)
+        case Mode.append:
+            with open(sys.argv[2], "a") as fin:
+                fin.write(sentences)
+
+
+def _save_image(time_string, image_idx):
+    video_path = sys.argv[1]
+    video_basename = basename(video_path)
+    image_idx += 1
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-ss",
+            time_string,
+            "-y",
+            "-i",
+            video_path,
+            "-frames:v",
+            "1",
+            f"./_{video_basename}_imgs/{time_string}_{image_idx}.png",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return (
+        f"![img_{image_idx}](./_{video_basename}_imgs/{time_string}_{image_idx}.png)",
+        image_idx,
+    )
+
+
+def remove_extension(fname):
+    """stips of the file extension
+    :fname: filename
+    :returns: basename of the file
+
+    """
+    # if there's no '.' rindex raises a exception, rfind returns -1
+    index_of_extension_start = fname.rfind(".")
+    if index_of_extension_start == -1:
+        return fname
+    return fname[0:index_of_extension_start]
+
+
+def _remove_path(fname):
+    index_of_path_end = fname.rfind("/")
+    if index_of_path_end == -1:
+        return fname
+    return fname[index_of_path_end + 1 :]
+
+
+def basename(fname):
+    fname = remove_extension(fname)
+    return _remove_path(fname)
+
+
+def find_scenes(video_path, threshold=30.0):
+    # Create our video & scene managers, then add the detector.
+    video_manager = VideoManager([video_path])
+    scene_manager = SceneManager()
+    scene_manager.add_detector(ContentDetector(threshold=threshold))
+
+    # Improve processing speed by downscaling before processing.
+    video_manager.set_downscale_factor()
+
+    # Start the video manager and perform the scene detection.
+    video_manager.start()
+    scene_manager.detect_scenes(frame_source=video_manager)
+
+    # Each returned scene is a tuple of the (start, end) timecode.
+    return scene_manager.get_scene_list()
+
+
+if __name__ == "__main__":
+    if not (2 < len(sys.argv) < 4):
+        print(f"Usage: {sys.argv[0]} audiofile output file")
+        exit(1)
+    new_dir_for_imgs = f"./_{basename(sys.argv[1])}_imgs"
+    if not os.path.exists(new_dir_for_imgs):
+        subprocess.run(["mkdir", f"{new_dir_for_imgs}"])
+    scenes = find_scenes(sys.argv[1]) if SCENEDETECTION else []
+    if SCENEDETECTION:
+        for scene in scenes:
+            print(f"{scene[0].get_timecode()} -> {scene[1].get_timecode()}")
+    start_time = print_current_time("start: ")
+    transcribe(scenes)
+    end_time = print_current_time("end: ")
+    print("duration: " + str(end_time - start_time)[:7])
