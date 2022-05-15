@@ -24,7 +24,7 @@ class Mode(Enum):
     append = "append"
 
 
-PATH = os.path.expanduser("~") + "/Repositories/vosk-models/vosk-model-de-0.21"
+PATH = os.path.expanduser("~") + "/Repositories/vosk-models/vosk-model-en-us-0.22"
 if not os.path.exists(PATH):
     print(
         "Please download the model from https://alphacephei.com/vosk/models"
@@ -188,7 +188,7 @@ def basename(fname):
     return _remove_path(fname)
 
 
-def find_scenes(video_path, threshold=30.0):
+def find_scenes(video_path, threshold=0.3):
     # Create our video & scene managers, then add the detector.
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
@@ -207,7 +207,7 @@ def find_scenes(video_path, threshold=30.0):
 
 if __name__ == "__main__":
     if not (2 < len(sys.argv) < 4):
-        print(f"Usage: {sys.argv[0]} audiofile output file")
+        print(f"Usage: {sys.argv[0]} audiofile output_file")
         exit(1)
     new_dir_for_imgs = f"./_{basename(sys.argv[1])}_imgs"
     if not os.path.exists(new_dir_for_imgs):
