@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+import subprocess
+import sys
+
+import pyperclip
+
+
+def time_string(seconds):
+    minutes = seconds / 60
+    seconds = seconds % 60
+    hours = int(minutes / 60)
+    minutes = int(minutes % 60)
+    return "%i:%02i:%02i" % (hours, minutes, seconds)
+
+
+if __name__ == "__main__":
+    process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
+    seconds_str = process.stdout.read().decode("ascii").rstrip()
+    seconds = seconds_str[: seconds_str.find(".")]
+    current_time = time_string(int(seconds))
+    lines_times = []
+    with open(sys.argv[1], "r") as fin:
+        lines = fin.readlines()
+        for lnr, line in enumerate(lines):
+            if line.find("`") != -1:
+                lines_times += [(lnr + 1, line[line.find("`") + 1 : line.rfind("`")])]
+        last_nr = lines_times[0][0]
+        for lnr, time in lines_times:
+            if current_time < time:
+                pyperclip.copy(last_nr)
+                break
+            last_nr = lnr
