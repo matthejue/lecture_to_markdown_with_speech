@@ -72,7 +72,7 @@ def transcribe(scenes):
     ]
     process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
-    _write_to_file_or_print("", Mode.write)
+    _write_to_file("", Mode.write)
     image_idx = -1
     img_string, image_idx = _save_image(time_string(1), image_idx)
     sentences = f"<!-- {os.path.abspath(sys.argv[1])} -->\n<!-- /home/areo/.config/mpv/mpv.conf -->\n[toc]\n# {'='*14}{time_string(0)}{'='*14}\n- {img_string}\n"
@@ -107,7 +107,7 @@ def _deal_with_result(
     content = " ".join([w["word"] for w in words])
 
     if start_seconds >= next_section_start:
-        _write_to_file_or_print(sentences, Mode.append)
+        _write_to_file(sentences, Mode.append)
         img_string, image_idx = _save_image(time_string(next_section_start), image_idx)
         del sentences
         sentences = (
@@ -124,19 +124,19 @@ def _deal_with_result(
 
     if final_sentences:
         sentences += f"<!-- - `{start}`: {content}. -->\n"
-        _write_to_file_or_print(sentences, Mode.append)
+        _write_to_file(sentences, Mode.append)
 
     sentences += f"<!-- - `{start}`: {content}. -->\n"
     return sentences, next_section_start, image_idx
 
 
-def _write_to_file_or_print(sentences, mode):
+def _write_to_file(sentences, mode):
     match mode:
         case Mode.write:
-            with open(sys.argv[2], "w") as fin:
+            with open(f"remove_extension(sys.argv[1]).md", "w") as fin:
                 fin.write(sentences)
         case Mode.append:
-            with open(sys.argv[2], "a") as fin:
+            with open(f"remove_extension(sys.argv[1]).md", "a") as fin:
                 fin.write(sentences)
 
 
@@ -213,8 +213,8 @@ def find_scenes(video_path, threshold=0.3):
 
 
 if __name__ == "__main__":
-    if not (2 < len(sys.argv) < 4):
-        print(f"Usage: {sys.argv[0]} audiofile output_file")
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} audiofile")
         exit(1)
     new_dir_for_imgs = f"./_{basename(sys.argv[1])}_imgs"
     if not os.path.exists(new_dir_for_imgs):
