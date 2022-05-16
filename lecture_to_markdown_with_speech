@@ -113,7 +113,7 @@ def _deal_with_result(
         )
         next_section_start += SECTION_LENGTH_MINUTES * 60
 
-    if scenes and start_seconds >= scenes[0][1].get_seconds():
+    while scenes and start_seconds >= scenes[0][1].get_seconds():
         img_string, image_idx = _save_image(
             time_string(scenes[0][1].get_seconds()), image_idx
         )
