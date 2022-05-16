@@ -195,10 +195,11 @@ def find_scenes(video_path, threshold=0.3):
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
 
-    timecode = FrameTimecode(
-        timecode="10s", fps=video_manager.get_framerate())
+    timecode = FrameTimecode(timecode="10s", fps=video_manager.get_framerate())
 
-    scene_manager.add_detector(ContentDetector(threshold=threshold, min_scene_len=timecode))
+    scene_manager.add_detector(
+        ContentDetector(threshold=threshold, min_scene_len=timecode)
+    )
 
     # Improve processing speed by downscaling before processing.
     video_manager.set_downscale_factor()
