@@ -133,10 +133,10 @@ def _deal_with_result(
 def _write_to_file(sentences, mode):
     match mode:
         case Mode.write:
-            with open(f"remove_extension(sys.argv[1]).md", "w") as fin:
+            with open(f"{remove_extension(sys.argv[1])}.md", "w") as fin:
                 fin.write(sentences)
         case Mode.append:
-            with open(f"remove_extension(sys.argv[1]).md", "a") as fin:
+            with open(f"{remove_extension(sys.argv[1])}.md", "a") as fin:
                 fin.write(sentences)
 
 
