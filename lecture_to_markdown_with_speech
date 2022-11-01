@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Standard PySceneDetect imports:
 from scenedetect import VideoManager
 from scenedetect import SceneManager
@@ -8,7 +8,8 @@ from scenedetect.detectors import ContentDetector
 
 from scenedetect.frame_timecode import FrameTimecode
 
-SCENEDETECTION = True
+SCENEDETECTION = False
+IMAGES_AT_SECTIONS = False
 
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import sys
@@ -17,6 +18,8 @@ import subprocess
 import json
 from datetime import datetime
 from enum import Enum
+
+from argparse import ArgumentParser
 
 SetLogLevel(-1)
 
@@ -74,8 +77,14 @@ def transcribe(scenes):
 
     _write_to_file("", Mode.write)
     image_idx = -1
-    img_string, image_idx = _save_image(time_string(1), image_idx)
-    sentences = f"<!-- {os.path.abspath(sys.argv[1])} -->\n<!-- /home/areo/.config/mpv/mpv.conf -->\n[toc]\n# {'='*14}{time_string(0)}{'='*14}\n- {img_string}\n"
+    if IMAGES_AT_SECTIONS:
+        img_string, image_idx = _save_image(time_string(1), image_idx)
+    full_path = os.path.abspath(sys.argv[1])
+    divided_path = divide(remove_extension(full_path))
+    sentences = (
+        f"<!-- {full_path} -->\n<!-- {divided_path[0] + '/_' + divided_path[1]}_imgs -->\n<!-- /home/areo/.config/mpv/mpv.conf -->\n[toc]\n# {'='*14}{time_string(0)}{'='*14}\n"
+        + (f"- {img_string}\n" if IMAGES_AT_SECTIONS else "")
+    )
     next_section_start = SECTION_LENGTH_MINUTES * 60
     while True:
         data = process.stdout.read(4000)
@@ -99,6 +108,8 @@ def _deal_with_result(
 ):
     words = json.loads(result).get("result")
     if not words:
+        if final_sentences:
+            _write_to_file(sentences, Mode.append)
         return sentences, next_section_start, image_idx
 
     start_seconds = words[0]["start"]
@@ -106,16 +117,19 @@ def _deal_with_result(
     #  end = time_string(words[-1]["end"])
     content = " ".join([w["word"] for w in words])
 
-    if start_seconds >= next_section_start:
+    if next_section_start <= start_seconds:
         _write_to_file(sentences, Mode.append)
-        img_string, image_idx = _save_image(time_string(next_section_start), image_idx)
+        if IMAGES_AT_SECTIONS:
+            img_string, image_idx = _save_image(
+                time_string(next_section_start), image_idx
+            )
         del sentences
-        sentences = (
-            f"# {'='*14}{time_string(next_section_start)}{'='*14}\n- {img_string}\n"
+        sentences = f"# {'='*14}{time_string(next_section_start)}{'='*14}\n" + (
+            f"- {img_string}\n" if IMAGES_AT_SECTIONS else ""
         )
         next_section_start += SECTION_LENGTH_MINUTES * 60
 
-    while scenes and start_seconds >= scenes[0][1].get_seconds():
+    while scenes and scenes[0][1].get_seconds() < start_seconds:
         img_string, image_idx = _save_image(
             time_string(scenes[0][1].get_seconds()), image_idx
         )
@@ -133,11 +147,11 @@ def _deal_with_result(
 def _write_to_file(sentences, mode):
     match mode:
         case Mode.write:
-            with open(f"{remove_extension(sys.argv[1])}.md", "w") as fin:
-                fin.write(sentences)
+            with open(f"{remove_extension(sys.argv[1])}.md", "w") as fout:
+                fout.write(sentences)
         case Mode.append:
-            with open(f"{remove_extension(sys.argv[1])}.md", "a") as fin:
-                fin.write(sentences)
+            with open(f"{remove_extension(sys.argv[1])}.md", "a") as fout:
+                fout.write(sentences)
 
 
 def _save_image(time_string, image_idx):
@@ -166,16 +180,16 @@ def _save_image(time_string, image_idx):
 
 
 def remove_extension(fname):
-    """stips of the file extension
-    :fname: filename
-    :returns: basename of the file
-
-    """
     # if there's no '.' rindex raises a exception, rfind returns -1
     index_of_extension_start = fname.rfind(".")
     if index_of_extension_start == -1:
         return fname
     return fname[0:index_of_extension_start]
+
+
+def divide(chars):
+    idx = chars.rfind("/")
+    return (chars[:idx], chars[idx + 1 :])
 
 
 def _remove_path(fname):
@@ -213,9 +227,18 @@ def find_scenes(video_path, threshold=0.1):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} audiofile")
-        exit(1)
+    #  if len(sys.argv) != 2:
+    #      print(f"Usage: {sys.argv[0]} audiofile")
+    #      exit(1)
+    args_parser = ArgumentParser()
+    args_parser.add_argument("infile", nargs="?")
+    args_parser.add_argument("-s", "--scenedetection", action="store_true")
+    args_parser.add_argument("-i" "--images_at_sections", action="store_true")
+    args = args_parser.parse_args()
+
+    IMAGES_AT_SECTIONS = args.images_at_sections
+    SCENEDETECTION = args.scenedetection
+
     new_dir_for_imgs = f"./_{basename(sys.argv[1])}_imgs"
     if not os.path.exists(new_dir_for_imgs):
         subprocess.run(["mkdir", f"{new_dir_for_imgs}"])

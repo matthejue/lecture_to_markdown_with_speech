@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+import sys
+import os
+
+
+def remove_extension(fname):
+    # if there's no '.' rindex raises a exception, rfind returns -1
+    index_of_extension_start = fname.rfind("r.")
+    if index_of_extension_start == -1:
+        index_of_extension_start = fname.rfind(".")
+        if index_of_extension_start == -1:
+            return fname
+    return fname[0:index_of_extension_start]
+
+
+def get(lst, idx):
+    return lst[idx] if len(lst) > idx else None
+
+
+def main():
+    file = sys.argv[1]
+    img_fldr = "_" + remove_extension(file) + "_imgs"
+    with open(file, "r") as fin, open(remove_extension(file) + "i.md", "w") as fout:
+        flines = fin.readlines()
+        imgs_in_fldr = [i for i in sorted(os.listdir(img_fldr)) if i.startswith("new")]
+
+        new_flines = []
+
+        img_name = imgs_in_fldr.pop(0) if imgs_in_fldr else "new_99:99:99_"
+        time = img_name[5:12]
+        img_idx = 1
+        for fline in flines:
+            if get(fline, 2) == "`" and get(fline, 10) == "`":
+                ftime = fline[3:10]
+                while time < ftime:
+                    new_flines += f"- ![new_{img_idx}](./{img_fldr}/{img_name})\n"
+                    img_idx += 1
+                    img_name = imgs_in_fldr.pop(0) if imgs_in_fldr else "new_99:99:99_"
+                    time = img_name[5:12]
+            elif get(fline, 7) == "`" and get(fline, 15) == "`":
+                ftime = fline[8:15]
+                while time < ftime:
+                    new_flines += f"- ![new_{img_idx}](./{img_fldr}/{img_name})\n"
+                    img_idx += 1
+                    img_name = imgs_in_fldr.pop(0) if imgs_in_fldr else "new_99:99:99_"
+                    time = img_name[5:12]
+            new_flines += [fline]
+
+        fout.write("".join(new_flines))
+
+
+if __name__ == "__main__":
+    main()
