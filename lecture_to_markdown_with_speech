@@ -233,7 +233,7 @@ if __name__ == "__main__":
     args_parser = ArgumentParser()
     args_parser.add_argument("infile", nargs="?")
     args_parser.add_argument("-s", "--scenedetection", action="store_true")
-    args_parser.add_argument("-i" "--images_at_sections", action="store_true")
+    args_parser.add_argument("-i", "--images_at_sections", action="store_true")
     args = args_parser.parse_args()
 
     IMAGES_AT_SECTIONS = args.images_at_sections
