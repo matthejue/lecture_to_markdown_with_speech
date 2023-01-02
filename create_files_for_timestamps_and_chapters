@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import re
+import sys
+import os
+
+
+def get(lst, idx):
+    return lst[idx] if len(lst) > idx else None
+
+
+def _remove_path(fname):
+    index_of_path_end = fname.rfind("/")
+    if index_of_path_end == -1:
+        return fname
+    return fname[index_of_path_end + 1 :]
+
+
+def remove_extension(fname):
+    # if there's no '.' rindex raises a exception, find returns -1
+    index_of_extension_start = fname.rfind(".")
+    if index_of_extension_start == -1:
+        return fname
+    return fname[0:index_of_extension_start]
+
+
+def basename(fname):
+    fname = remove_extension(fname)
+    return _remove_path(fname)
+
+
+def determine_line_num(timestamp, flines, line_nr):
+    last_line_nr = line_nr
+    for line_nr, fline in enumerate(flines[line_nr - 1 :], line_nr):
+        #  if get(fline, 2) == "!":
+        #      start = fline.rfind("new_") + 4
+        #      end = start + 8
+        #      ftime = fline[start:end]
+        #      if timestamp < ftime:
+        #          return line_nr
+        if get(fline, 2) == "`" and get(fline, 11) == "`":
+            ftime = fline[3:11]
+            if timestamp < ftime:
+                return last_line_nr
+            else:
+                last_line_nr = line_nr
+        elif get(fline, 7) == "`" and get(fline, 16) == "`":
+            ftime = fline[8:16]
+            if timestamp < ftime:
+                return last_line_nr
+            else:
+                last_line_nr = line_nr
+
+
+def main():
+    data = list()
+    speech_file = sys.argv[1]
+
+    with open(speech_file, "r") as f:
+        lines = f.readlines()
+        video_file = lines[0].rstrip()[5:-4]
+
+        start_of_timestamps = 0
+        for start_of_timestamps, line in enumerate(lines):
+            if "# Timestamps" in line:
+                # +1 because start at one line after "# Timestamps"
+                # +1 because in vim line numbers start at 1
+                start_of_timestamps += 1
+                break
+        line_nr_content = 1
+        for line_nr_timestamp, line in enumerate(
+            lines[start_of_timestamps:], start_of_timestamps + 1
+        ):
+            if re.match(r"(\d{2}):(\d{2}):(\d{2}) (.*)", line):
+                x = re.match(r"(\d{2}):(\d{2}):(\d{2}) (.*)", line)
+                hrs = int(x.group(1))
+                mins = int(x.group(2))
+                secs = int(x.group(3))
+                message = x.group(4)
+            else:
+                x = re.match(r"(\d{2}):(\d{2}):(\d{2})", line)
+                hrs = int(x.group(1))
+                mins = int(x.group(2))
+                secs = int(x.group(3))
+                message = "-"
+
+            minutes = (hrs * 60) + mins
+            seconds = secs + (minutes * 60)
+            time_milli_seconds = seconds * 1000
+            timestamp = "%02i:%02i:%02i" % (hrs, mins, secs)
+            line_nr_content = determine_line_num(timestamp, lines, line_nr_content)
+            chap = {
+                "message": message,
+                "startTimeMilliSeconds": time_milli_seconds,
+                "timestamp": timestamp,
+                "lineNrContent": line_nr_content,
+                "lineNrTimestamp": line_nr_timestamp,
+            }
+            data.append(chap)
+
+    data = sorted(data, key=lambda e: e["startTimeMilliSeconds"])
+
+    ############################
+    #  chapters for videofile  #
+    ############################
+
+    text = ""
+
+    for i in range(len(data) - 1):
+        chap = data[i]
+        message = chap["message"]
+        start = chap["startTimeMilliSeconds"]
+        end = data[i + 1]["startTimeMilliSeconds"] - 1
+        timestamp = chap["timestamp"]
+        if start == end + 1:
+            continue
+        text += f"\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={start}\nEND={end}\ntitle=[{i};{timestamp}] {message}"
+
+    with open(remove_extension(video_file) + ".chapters", "w") as fout:
+        fout.write(";FFMETADATA1" + text)
+
+    ################################
+    #  timestamps for speech file  #
+    ################################
+
+    text = ""
+
+    for i in range(len(data) - 1):
+        chap = data[i]
+        message = chap["message"]
+        line_nr_content = chap["lineNrContent"]
+        line_nr_timestamp = chap["lineNrTimestamp"]
+        timestamp = chap["timestamp"]
+        text += f"{speech_file} {line_nr_content} [{i};{line_nr_timestamp};{timestamp}] {message}\n"
+
+    with open(remove_extension(speech_file) + ".timestamps", "w") as fout:
+        fout.write(text)
+
+
+if __name__ == "__main__":
+    main()

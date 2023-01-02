@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import sys
+import os
+
+
+def only_keep_path(path_to_file):
+    index_of_path_end = path_to_file.rfind("/")
+    if index_of_path_end == -1:
+        return "./"
+    return path_to_file[: index_of_path_end + 1]
+
+
+def is_absoute_path(path_to_file):
+    return path_to_file[0] == "/"
+
+
+def main():
+    file_path = sys.argv[1]
+
+    if not is_absoute_path(file_path):
+        file_path = os.getcwd() + "/" + file_path
+
+    with open(file_path, "a", encoding="UTF-8") as fout:
+        fout.write("\n# Timestamps\n")
+
+    with open("/tmp/timestamps_path", "w") as fout:
+        fout.write(file_path)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import subprocess
+
+
+def time_string(seconds):
+    minutes = seconds / 60
+    seconds = seconds % 60
+    hours = int(minutes / 60)
+    minutes = int(minutes % 60)
+    return "%02i:%02i:%02i" % (hours, minutes, seconds)
+
+
+def main():
+    with open("/tmp/timestamps_path", "r") as fin:
+        target_file = fin.read().rstrip()
+
+    with open(target_file, "a+") as fout:
+        process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
+        seconds_str = process.stdout.read().decode("ascii").rstrip()
+        seconds = seconds_str[: seconds_str.find(".")]
+        current_time = time_string(int(seconds))
+        fout.write(f"{current_time}\n")
+
+        subprocess.run(
+            [
+                "notify-send",
+                f"Created timestamp {current_time} in file {target_file}",
+            ]
+        )
+
+
+if __name__ == "__main__":
+    main()

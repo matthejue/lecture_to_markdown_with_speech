@@ -48,7 +48,7 @@ def time_string(seconds):
     seconds = seconds % 60
     hours = int(minutes / 60)
     minutes = int(minutes % 60)
-    return "%i:%02i:%02i" % (hours, minutes, seconds)
+    return "%02i:%02i:%02i" % (hours, minutes, seconds)
 
 
 def print_current_time(prefix):
