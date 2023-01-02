@@ -117,7 +117,8 @@ def main():
             continue
         text += f"\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={start}\nEND={end}\ntitle=[{i};{timestamp}] {message}"
 
-    with open(remove_extension(video_file) + ".chapters", "w") as fout:
+    #  with open(remove_extension(video_file) + ".chapters", "w") as fout:
+    with open("/tmp/chapters", "w") as fout:
         fout.write(";FFMETADATA1" + text)
 
     ################################
@@ -134,7 +135,8 @@ def main():
         timestamp = chap["timestamp"]
         text += f"{speech_file} {line_nr_content} [{i};{line_nr_timestamp};{timestamp}] {message}\n"
 
-    with open(remove_extension(speech_file) + ".timestamps", "w") as fout:
+    #  with open(remove_extension(speech_file) + ".timestamps", "w") as fout:
+    with open("/tmp/timestamps", "w") as fout:
         fout.write(text)
 
 
