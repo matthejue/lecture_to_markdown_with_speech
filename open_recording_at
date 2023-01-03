@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 if [[ -f $1 ]]; then
-  mpv --start=$2 $(sed -n '1p' $1 | sed -e 's/<!-- //' | sed -e 's/ -->//') --pause --speed=2.0 &
+  mpv --chapters-file=/tmp/chapters --start=$2 $(sed -n '1p' $1 | sed -e 's/<!-- //' | sed -e 's/ -->//') --pause --speed=2.0 &
 else
   # https://askubuntu.com/questions/407743/convert-time-stamp-to-seconds-in-bash
   seconds=$(echo $2 | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
