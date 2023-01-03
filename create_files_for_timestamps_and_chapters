@@ -3,7 +3,7 @@
 
 import re
 import sys
-import os
+import subprocess
 
 
 def get(lst, idx):
@@ -97,7 +97,7 @@ def main():
                 "lineNrContent": line_nr_content,
                 "lineNrTimestamp": line_nr_timestamp,
             }
-            data.append(chap)
+            data += [chap]
 
     data = sorted(data, key=lambda e: e["startTimeMilliSeconds"])
 
@@ -116,8 +116,28 @@ def main():
         if start == end + 1:
             continue
         text += f"\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={start}\nEND={end}\ntitle=[{i};{timestamp}] {message}"
+    else:
+        # last chapter
+        chap = data[-1]
+        message = chap["message"]
+        start = chap["startTimeMilliSeconds"]
+        timestamp = chap["timestamp"]
 
-    #  with open(remove_extension(video_file) + ".chapters", "w") as fout:
+        # finding out end time
+        process = subprocess.Popen(
+            ["ffprobe", "-i", video_file, "-show_format"], stdout=subprocess.PIPE
+        )
+        lines = process.stdout.read().decode("ascii").split("\n")
+
+        for line in lines:
+            if "duration" in line:
+                start_idx = line.rfind("=") + 1
+                seconds = float(line[start_idx:])
+                end = int(seconds * 1000)
+                break
+        text += f"\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={start}\nEND={end}\ntitle=[{len(data)-1};{timestamp}] {message}"
+
+    # with open(remove_extension(video_file) + ".chapters", "w") as fout:
     with open("/tmp/chapters", "w") as fout:
         fout.write(";FFMETADATA1" + text)
 
@@ -127,7 +147,7 @@ def main():
 
     text = ""
 
-    for i in range(len(data) - 1):
+    for i in range(len(data)):
         chap = data[i]
         message = chap["message"]
         line_nr_content = chap["lineNrContent"]
