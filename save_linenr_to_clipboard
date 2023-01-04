@@ -23,7 +23,8 @@ if __name__ == "__main__":
     with open(sys.argv[1], "r") as fin:
         lines = fin.readlines()
         for lnr, line in enumerate(lines):
-            if line.find("`") != -1:
+            if line.find("`") != -1 and line.find("-") != -1:
+                # right site of and is there so on can write e.g. ```python```
                 lines_times += [(lnr + 1, line[line.find("`") + 1 : line.rfind("`")])]
         last_nr = lines_times[0][0]
         for lnr, time in lines_times:
