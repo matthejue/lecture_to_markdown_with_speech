@@ -29,7 +29,7 @@ def main():
         seconds_str = process.stdout.read().decode("ascii").rstrip()
         seconds = seconds_str[: seconds_str.find(".")]
         current_time = time_string(int(seconds))
-        fout.write(f"{current_time}{input_str}\n")
+        fout.write(f"- `{current_time}`{input_str}\n")
 
         subprocess.run(
             [

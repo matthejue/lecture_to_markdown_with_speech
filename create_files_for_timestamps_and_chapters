@@ -72,14 +72,14 @@ def main():
         for line_nr_timestamp, line in enumerate(
             lines[start_of_timestamps:], start_of_timestamps + 1
         ):
-            if re.match(r"(\d{2}):(\d{2}):(\d{2}) (.*)", line):
-                x = re.match(r"(\d{2}):(\d{2}):(\d{2}) (.*)", line)
+            if re.match(r"- `(\d{2}):(\d{2}):(\d{2})` (.*)", line):
+                x = re.match(r"- `(\d{2}):(\d{2}):(\d{2})` (.*)", line)
                 hrs = int(x.group(1))
                 mins = int(x.group(2))
                 secs = int(x.group(3))
                 message = x.group(4)
             else:
-                x = re.match(r"(\d{2}):(\d{2}):(\d{2})", line)
+                x = re.match(r"- `(\d{2}):(\d{2}):(\d{2})`", line)
                 hrs = int(x.group(1))
                 mins = int(x.group(2))
                 secs = int(x.group(3))
