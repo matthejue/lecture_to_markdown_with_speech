@@ -127,7 +127,7 @@ def main():
         process = subprocess.Popen(
             ["ffprobe", "-i", video_file, "-show_format"], stdout=subprocess.PIPE
         )
-        lines = process.stdout.read().decode("ascii").split("\n")
+        lines = process.stdout.read().decode("utf-8").split("\n")
 
         for line in lines:
             if "duration" in line:
