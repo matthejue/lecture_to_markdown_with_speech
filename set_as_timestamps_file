@@ -21,11 +21,17 @@ def main():
     if not is_absoute_path(file_path):
         file_path = os.getcwd() + "/" + file_path
 
-    with open(file_path, "a", encoding="UTF-8") as fout:
-        fout.write("\n# Timestamps\n")
+    # create empty file if it doesn't exist
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as finout:
+            finout.write("# Timestamps\n")
+    # test if there already a line with timestamps
+    with open(file_path, "r+", encoding="UTF-8") as finout:
+        if not finout.readline().startswith("# Timestamps"):
+            finout.write("# Timestamps\n")
 
-    with open("/tmp/timestamps_path", "w") as fout:
-        fout.write(file_path)
+    with open("/tmp/timestamps_path", "w") as finout:
+        finout.write(file_path)
 
 
 if __name__ == "__main__":

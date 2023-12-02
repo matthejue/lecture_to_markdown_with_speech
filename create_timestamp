@@ -3,6 +3,33 @@
 import subprocess
 import sys
 import os
+import PyPDF2
+from PIL import ImageGrab
+
+IMG_DIR_NAME = "_imgs"
+
+
+def _remove_path(fname):
+    index_of_path_end = fname.rfind("/")
+    if index_of_path_end == -1:
+        return fname
+    return fname[index_of_path_end + 1 :]
+
+
+# function that removes the file extension from a path
+def _remove_extension(fname):
+    # if there's no '.' rindex raises a exception, find returns -1
+    index_of_extension_start = fname.rfind(".")
+    if index_of_extension_start == -1:
+        return fname
+    return fname[0:index_of_extension_start]
+
+
+def _only_keep_path(fname):
+    index_of_path_end = fname.rfind("/")
+    if index_of_path_end == -1:
+        return "."
+    return fname[:index_of_path_end]
 
 
 def time_string(seconds):
@@ -16,13 +43,66 @@ def time_string(seconds):
 def main():
     with open("/tmp/timestamps_path", "r") as fin:
         target_file = fin.read().rstrip()
+        target_dir = _only_keep_path(target_file)
+        target_file_no_ext = _remove_extension(target_file)
+        target_basename = _remove_path(_remove_extension(target_file_no_ext))
 
     input_str = ""
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 2 and sys.argv[1] == "comment":
         with open(os.devnull, "r") as fnull:
             process = subprocess.Popen(["dmenu"], stdin=fnull, stdout=subprocess.PIPE)
             process.wait()
             input_str = " " + process.stdout.read().decode("ascii").rstrip()
+    elif len(sys.argv) == 2 and sys.argv[1] == "image":
+        process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
+        seconds_str = process.stdout.read().decode("ascii").rstrip()
+        seconds = seconds_str[: seconds_str.find(".")]
+        current_time = time_string(int(seconds))
+
+        # create new directory if it doesn't exist
+        if not os.path.exists(f"{target_dir}/{IMG_DIR_NAME}"):
+            os.mkdir(f"{target_dir}/{IMG_DIR_NAME}")
+        # if os.path.exists(f"{target_file_no_ext}.pdf"):
+        #     # find out number of pages of the pdf using PYPDF2
+        #     pdf_file = open(f"{target_file_no_ext}.pdf", "rb")
+        #     pdf_reader = PyPDF2.PdfReader(f"{target_file_no_ext}.pdf")
+        #     num_pages = len(pdf_reader.pages)
+        # else:  # create pdf file
+        #     num_pages = 0
+        # paste image from clipboard
+        im = ImageGrab.grabclipboard()
+        im.save(
+            f"{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png", "PNG"
+        )
+
+        # add image from clipboard as new page in pdf file
+        if not os.path.exists(f"{target_file_no_ext}.pdf"):
+            subprocess.run(
+                [
+                    "img2pdf",
+                    f"{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png",
+                    "--output",
+                    f"{target_file_no_ext}.pdf",
+                ]
+            )
+        else:
+            subprocess.run(
+                [
+                    "img2pdf",
+                    f"{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png",
+                    "--output",
+                    f"{target_file_no_ext}_tmp.pdf",
+                ]
+            )
+            # append pdf file to other pdf file with PyPDF2
+            merger = PyPDF2.PdfWriter()
+            merger.append(f"{target_file_no_ext}.pdf")
+            merger.append(f"{target_file_no_ext}_tmp.pdf")
+            merger.write(f"{target_file_no_ext}.pdf")
+            # remove temporary pdf file
+            os.remove(f"{target_file_no_ext}_tmp.pdf")
+
+        input_str = f'\n\n  <img src="{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png" width="50%">'
 
     with open(target_file, "a+") as fout:
         process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
