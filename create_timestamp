@@ -48,17 +48,17 @@ def main():
         target_basename = _remove_path(_remove_extension(target_file_no_ext))
 
     input_str = ""
+    process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
+    seconds_str = process.stdout.read().decode("ascii").rstrip()
+    seconds = seconds_str[: seconds_str.find(".")]
+    current_time = time_string(int(seconds))
+
     if len(sys.argv) == 2 and sys.argv[1] == "comment":
         with open(os.devnull, "r") as fnull:
             process = subprocess.Popen(["dmenu"], stdin=fnull, stdout=subprocess.PIPE)
             process.wait()
             input_str = " " + process.stdout.read().decode("ascii").rstrip()
     elif len(sys.argv) == 2 and sys.argv[1] == "image":
-        process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
-        seconds_str = process.stdout.read().decode("ascii").rstrip()
-        seconds = seconds_str[: seconds_str.find(".")]
-        current_time = time_string(int(seconds))
-
         # create new directory if it doesn't exist
         if not os.path.exists(f"{target_dir}/{IMG_DIR_NAME}"):
             os.mkdir(f"{target_dir}/{IMG_DIR_NAME}")
@@ -105,18 +105,24 @@ def main():
         input_str = f'\n\n  <img src="{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png" width="50%">'
 
     with open(target_file, "a+") as fout:
-        process = subprocess.Popen(["playerctl", "position"], stdout=subprocess.PIPE)
-        seconds_str = process.stdout.read().decode("ascii").rstrip()
-        seconds = seconds_str[: seconds_str.find(".")]
-        current_time = time_string(int(seconds))
         fout.write(f"- `{current_time}`{input_str}\n")
 
-        subprocess.run(
-            [
-                "notify-send",
-                f"Created timestamp {current_time}{input_str} in file {target_file}",
-            ]
-        )
+        if len(sys.argv) == 2 and sys.argv[1] == "comment":
+            subprocess.run(
+                [
+                    "notify-send",
+                    f"Created timestamp {current_time}{input_str} in file {target_file}",
+                ]
+            )
+        elif len(sys.argv) == 2 and sys.argv[1] == "image":
+            subprocess.run(
+                [
+                    "notify-send",
+                    f"Created timestamp for image in file {target_file}",
+                    "--icon",
+                    f"{target_dir}/{IMG_DIR_NAME}/{target_basename}_{current_time}.png",
+                ]
+            )
 
 
 if __name__ == "__main__":
