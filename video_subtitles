@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+import sys
+
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
+
+# Must be a single transcript.
+transcript = YouTubeTranscriptApi.get_transcript(sys.argv[1])
+
+formatter = TextFormatter()
+
+# .format_transcript(transcript) turns the transcript into a JSON string.
+subtitles = formatter.format_transcript(transcript)
+
+# Now we can write it out to a file.
+with open(f"{sys.argv[2]}.subtitles", "w", encoding="utf-8") as subtitle_file:
+    subtitle_file.write(subtitles)

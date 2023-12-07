@@ -1,3 +1,4 @@
 vosk
 scenedetect
 opencv-python
+youtube-transcript-api
